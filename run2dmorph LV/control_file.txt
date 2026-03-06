@@ -1,0 +1,23 @@
+# RUN2DMORPHLV CONTROL FILE
+# VERSION 2017-06
+# 4SQ EXAMPLE
+
+in_directory = C:\Users\MH\Desktop\Kern_Test\Kern_Test\final\m_LV_dors
+input_ext = .jpg
+sampleID =
+out_directory =
+
+pixel_size_x = 0.69
+pixel_size_y = 0.69
+
+get_coordinates =True
+draw_aspect_ratio =True
+save_intermediates = True
+
+disk_size_opening = 7
+contrast_adjustment =10
+threshold_adjustment =1
+disk_size_smoothing = 1
+
+downsample = TRUE
+num_points =100

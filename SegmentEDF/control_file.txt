@@ -1,0 +1,29 @@
+# SEGMENT CONTROL FILE
+# VERSION 2017-02
+# Saved Settings:
+[settings]
+
+directory = C:\Users\MH\Desktop\Kern_Test
+output = C:\Users\MH\Desktop\Kern_Test
+pixel_size_x = 1.445
+pixel_size_y = 1.445
+
+mode = final
+threshold = 0.33
+minimum_size=500
+maximum_size =2200
+
+skip_last_plane =true
+box_thickness = 10
+
+input_ext = jpg
+output_ext = jpg
+unit =microns
+scale_bar_length =500
+
+unique_id = 
+age = Fossil
+source = Nam Co
+location =UG
+author =Hoehle
+catalog_prefix =

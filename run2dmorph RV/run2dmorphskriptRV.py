@@ -1,0 +1,108 @@
+# -*- coding: utf-8 -*-
+
+
+# Run2dmorph originally written by A. Hsiang
+#
+# 2016-06: Python port initalized by K. Nelson
+# 2017-05: Python port completed by A. Hsiang
+# 2025-04: modiefied for ostracod left valve size and shape extraction by M. Hoehle
+
+import settings
+import initialize
+import images
+import extractoutline
+import extractmorph
+import extractcoordinates
+import aspectratio
+import save
+
+from datetime import datetime
+import os
+import socket
+import sys
+import pandas
+
+
+def morph2d(settings_file):
+    version = '2017.5.5'
+    print(f'\nRUN2DMORPH (v.{version})\n')
+
+    print(str(datetime.now()) + '\n')
+
+    # Load settings file
+    print(f'Loading settings from {settings_file}...\n')
+    run = settings.parse(settings_file)
+    settings.save(run)
+
+    # Create output directories
+    initialize.makeOutputDirectories(run)
+
+    # Pull list of all images in input directory
+    image_list = images.list_files(run['in_directory'], run['input_ext'])
+
+    # Initialize output 2D data frame
+    data2D = pandas.DataFrame(columns=[
+        'SampleID', 'ObjectID', 'Area', 'Eccentricity', 'Perimeter',
+        'MajorAxisLength', 'MinorAxisLength', 'Rugosity',
+        'Height', 'Width', 'AspectRatio'
+    ])
+
+    for img in image_list:
+        # Load image (also resizes if necessary)
+        image = images.load(img, run)
+
+        # Generate names for saving output files
+        sample_id = run['sampleID']
+        object_id = os.path.splitext(os.path.basename(img))[0]
+        object_name = '_'.join([sample_id, object_id])
+	# Extract edge and cleaned images
+        try:
+            edge_unsmoothed, edge_smoothed, image_clean, image_smoothed, image_border = extractoutline.extractOutline(run, object_id, image, False)
+
+            # Get region properties: Area, eccentricity, perimeter, major axis length, minor axis length, and rugosity
+            original_props = extractmorph.getRegionProps(image_clean)
+            smoothed_props = extractmorph.getRegionProps(image_smoothed)
+            measures = extractmorph.extractMorphology(original_props, smoothed_props)
+
+            # Get minimum bounding box and aspect ratio
+            mbb, contour = aspectratio.getMBB(image_clean)
+            height, width, aspect_ratio = aspectratio.measureMBB(mbb)
+
+            # Save aspect ratio image if requested
+            if run['draw_aspect_ratio']:
+                save.saveMBBFigure(run, mbb, contour, aspect_ratio, object_name)
+
+            # Save measurements to data frame
+            data2D = save.saveObject2D(data2D, sample_id, object_id, measures, height, width, aspect_ratio)
+
+            # Extract unsmoothed and smoothed coordinates if requested and save to file
+            if run['get_coordinates']:
+                coordinates_unsmoothed = extractcoordinates.extractCoordinates(
+                    edge_unsmoothed, run['downsample'], run['num_points'], original_props, measures['MajorAxisLength'])
+                coordinates_smoothed = extractcoordinates.extractCoordinates(
+                    edge_smoothed, run['downsample'], run['num_points'], smoothed_props, measures['MajorAxisLength'])
+                save.saveCoordinates(run, coordinates_unsmoothed, sample_id, object_id, object_name, 'original')
+                save.saveCoordinates(run, coordinates_smoothed, sample_id, object_id, object_name, 'smoothed')
+                print(f"Saving unsmoothed coords to: {sample_id}_{object_id}_original")
+                print(f"Saving smoothed coords to:   {sample_id}_{object_id}_smoothed")
+
+        except Exception as e:
+            print(f"WARNING: Failed to process {object_id}: {e}")
+            continue
+
+    # Write final collection of measurements into CSV file
+    output_path = os.path.join(run['out_directory'], '_'.join([run['sampleID'], 'morph2d', 'properties.csv']))
+    data2D.to_csv(output_path, index=False)
+
+    print('INFO: Run2dmorph process completed.\n')
+
+
+if __name__ == "__main__":
+    if socket.gethostname() == 'tide.geology.yale.edu':
+        os.nice(10)
+
+    if len(sys.argv) == 2:
+        morph2d(sys.argv[1])
+    else:
+        print('Usage: run2dmorph <settings_file>')
+        sys.exit('Error: incorrect usage')
